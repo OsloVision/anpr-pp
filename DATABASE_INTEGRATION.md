@@ -1,20 +1,24 @@
 # License Plate Reader with Database Integration
 
 ## Overview
+
 The license plate reader now automatically saves all registry lookups to a SQLite database when using the `--check-registry` option.
 
 ## Features Added ✅
 
 ### 1. **Automatic Database Creation**
+
 - Database and table are created automatically if they don't exist
 - No manual setup required
 
 ### 2. **Smart Upsert Functionality**
+
 - **INSERT**: New license plates are added to the database
 - **UPDATE**: Existing license plates are updated with new status
 - **Timestamps**: Automatic `created_at` and `updated_at` tracking
 
 ### 3. **Database Schema**
+
 ```sql
 CREATE TABLE loan_status (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,16 +38,19 @@ CREATE TRIGGER update_loan_status_updated_at...
 ## Usage Examples
 
 ### Basic License Plate Reading (no database)
+
 ```bash
 python license_plate_reader.py image.png
 ```
 
 ### With Registry Check + Database Integration
+
 ```bash
 python license_plate_reader.py --check-registry image.png
 ```
 
 ### Custom Database Path
+
 ```bash
 python license_plate_reader.py --check-registry --db-path custom.db image.png
 ```
@@ -51,6 +58,7 @@ python license_plate_reader.py --check-registry --db-path custom.db image.png
 ## Database Management
 
 ### Command Line Utilities
+
 ```bash
 # View all records
 python loan_db_utils.py list
@@ -72,6 +80,7 @@ python loan_db_utils.py exists "ABC123"
 ```
 
 ### Programmatic Usage
+
 ```python
 from loan_db_utils import LoanStatusDB
 

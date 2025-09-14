@@ -155,26 +155,26 @@ def check_plate_only(numberplate):
 def upsert_loan_status(numberplate, loan_status, db_path="loan_status.db"):
     """
     Insert or update loan status in the database.
-    
+
     Args:
         numberplate (str): License plate number
         loan_status (str): Loan status ("yes" for registered, "no" for not registered)
         db_path (str): Path to the SQLite database file
-    
+
     Returns:
         bool: True if successful, False otherwise
     """
     try:
         import sqlite3
         import os
-        
+
         # Check if database file exists, if not create it with proper schema
         if not os.path.exists(db_path):
             print(f"📁 Creating database: {db_path}")
             # Create the database with the schema
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            
+
             # Create table
             cursor.execute("""
                 CREATE TABLE loan_status (
@@ -185,13 +185,13 @@ def upsert_loan_status(numberplate, loan_status, db_path="loan_status.db"):
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            
+
             # Create unique index
             cursor.execute("""
                 CREATE UNIQUE INDEX idx_numberplate_unique 
                 ON loan_status(numberplate)
             """)
-            
+
             # Create trigger
             cursor.execute("""
                 CREATE TRIGGER update_loan_status_updated_at
@@ -201,16 +201,16 @@ def upsert_loan_status(numberplate, loan_status, db_path="loan_status.db"):
                     UPDATE loan_status SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
                 END
             """)
-            
+
             conn.commit()
             conn.close()
             print(f"✅ Database created: {db_path}")
-        
+
         db = LoanStatusDB(db_path)
-        
+
         # Check if record exists
         existing_record = db.get_loan_status(numberplate)
-        
+
         if existing_record:
             # Update existing record
             success = db.update_loan_status(numberplate, loan_status)
@@ -223,7 +223,7 @@ def upsert_loan_status(numberplate, loan_status, db_path="loan_status.db"):
             if success:
                 print(f"💾 Added to database: {numberplate} -> {loan_status}")
             return success
-            
+
     except Exception as e:
         print(f"❌ Database error: {e}", file=sys.stderr)
         return False
@@ -277,7 +277,7 @@ def main():
         if args.check_registry:
             registry_result = check_norwegian_registry(license_plate_text)
             print(f"Norwegian registry: {registry_result}")
-            
+
             # Upsert into database
             upsert_loan_status(license_plate_text, registry_result, args.db_path)
 

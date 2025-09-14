@@ -10,33 +10,36 @@ from typing import List, Tuple, Optional
 
 class LoanStatusDB:
     """Class to handle loan status database operations."""
-    
+
     def __init__(self, db_path="loan_status.db"):
         """Initialize database connection."""
         self.db_path = db_path
-    
+
     def connect(self):
         """Create database connection."""
         return sqlite3.connect(self.db_path)
-    
+
     def add_loan_status(self, numberplate: str, loan: str) -> bool:
         """
         Add a new loan status record.
-        
+
         Args:
             numberplate (str): License plate number
             loan (str): Loan status
-            
+
         Returns:
             bool: True if successful, False if duplicate or error
         """
         try:
             with self.connect() as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO loan_status (numberplate, loan) 
                     VALUES (?, ?)
-                """, (numberplate, loan))
+                """,
+                    (numberplate, loan),
+                )
                 conn.commit()
                 print(f"✅ Added: {numberplate} - {loan}")
                 return True
@@ -46,51 +49,59 @@ class LoanStatusDB:
         except sqlite3.Error as e:
             print(f"❌ Error adding record: {e}")
             return False
-    
-    def get_loan_status(self, numberplate: str) -> Optional[Tuple[int, str, str, str, str]]:
+
+    def get_loan_status(
+        self, numberplate: str
+    ) -> Optional[Tuple[int, str, str, str, str]]:
         """
         Get loan status for a specific numberplate.
-        
+
         Args:
             numberplate (str): License plate number
-            
+
         Returns:
             Tuple[int, str, str, str, str] or None: (id, numberplate, loan, created_at, updated_at) or None if not found
         """
         try:
             with self.connect() as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT id, numberplate, loan, created_at, updated_at
                     FROM loan_status 
                     WHERE numberplate = ?
-                """, (numberplate,))
+                """,
+                    (numberplate,),
+                )
                 result = cursor.fetchone()
                 return result
         except sqlite3.Error as e:
             print(f"❌ Error querying database: {e}")
             return None
-    
+
     def update_loan_status(self, numberplate: str, loan: str) -> bool:
         """
         Update loan status for existing numberplate.
-        
+
         Args:
             numberplate (str): License plate number
             loan (str): New loan status
-            
+
         Returns:
             bool: True if successful, False if not found or error
         """
         try:
             with self.connect() as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE loan_status 
                     SET loan = ? 
                     WHERE numberplate = ?
-                """, (loan, numberplate))
-                
+                """,
+                    (loan, numberplate),
+                )
+
                 if cursor.rowcount > 0:
                     conn.commit()
                     print(f"✅ Updated: {numberplate} - {loan}")
@@ -98,29 +109,32 @@ class LoanStatusDB:
                 else:
                     print(f"⚠️  Numberplate {numberplate} not found")
                     return False
-                    
+
         except sqlite3.Error as e:
             print(f"❌ Error updating record: {e}")
             return False
-    
+
     def delete_loan_status(self, numberplate: str) -> bool:
         """
         Delete loan status record.
-        
+
         Args:
             numberplate (str): License plate number
-            
+
         Returns:
             bool: True if successful, False if not found or error
         """
         try:
             with self.connect() as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     DELETE FROM loan_status 
                     WHERE numberplate = ?
-                """, (numberplate,))
-                
+                """,
+                    (numberplate,),
+                )
+
                 if cursor.rowcount > 0:
                     conn.commit()
                     print(f"✅ Deleted: {numberplate}")
@@ -128,34 +142,36 @@ class LoanStatusDB:
                 else:
                     print(f"⚠️  Numberplate {numberplate} not found")
                     return False
-                    
+
         except sqlite3.Error as e:
             print(f"❌ Error deleting record: {e}")
             return False
-    
+
     def list_all_records(self) -> List[Tuple[int, str, str, str, str]]:
         """
         Get all loan status records.
-        
+
         Returns:
             List[Tuple[int, str, str, str, str]]: List of (id, numberplate, loan, created_at, updated_at) tuples
         """
         try:
             with self.connect() as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT id, numberplate, loan, created_at, updated_at FROM loan_status ORDER BY id")
+                cursor.execute(
+                    "SELECT id, numberplate, loan, created_at, updated_at FROM loan_status ORDER BY id"
+                )
                 return cursor.fetchall()
         except sqlite3.Error as e:
             print(f"❌ Error listing records: {e}")
             return []
-    
+
     def check_numberplate_exists(self, numberplate: str) -> bool:
         """
         Check if a numberplate exists in the database.
-        
+
         Args:
             numberplate (str): License plate number
-            
+
         Returns:
             bool: True if exists, False otherwise
         """
@@ -176,22 +192,23 @@ def main():
         print("  list                       - List all records")
         print("  exists <numberplate>       - Check if numberplate exists")
         return
-    
+
     command = sys.argv[1].lower()
     db = LoanStatusDB()
-    
+
     if command == "create":
         # Import and run the create script
         from create_database import create_loan_status_database
+
         create_loan_status_database()
-        
+
     elif command == "add":
         if len(sys.argv) != 4:
             print("Usage: python loan_db_utils.py add <numberplate> <loan>")
             return
         numberplate, loan = sys.argv[2], sys.argv[3]
         db.add_loan_status(numberplate, loan)
-        
+
     elif command == "get":
         if len(sys.argv) != 3:
             print("Usage: python loan_db_utils.py get <numberplate>")
@@ -203,21 +220,21 @@ def main():
             print(f"Created: {result[3]}, Updated: {result[4]}")
         else:
             print(f"Numberplate {numberplate} not found")
-            
+
     elif command == "update":
         if len(sys.argv) != 4:
             print("Usage: python loan_db_utils.py update <numberplate> <loan>")
             return
         numberplate, loan = sys.argv[2], sys.argv[3]
         db.update_loan_status(numberplate, loan)
-        
+
     elif command == "delete":
         if len(sys.argv) != 3:
             print("Usage: python loan_db_utils.py delete <numberplate>")
             return
         numberplate = sys.argv[2]
         db.delete_loan_status(numberplate)
-        
+
     elif command == "list":
         records = db.list_all_records()
         if records:
@@ -228,7 +245,7 @@ def main():
                 print(f"    Created: {record[3]}, Updated: {record[4]}")
         else:
             print("No records found")
-            
+
     elif command == "exists":
         if len(sys.argv) != 3:
             print("Usage: python loan_db_utils.py exists <numberplate>")
@@ -236,7 +253,7 @@ def main():
         numberplate = sys.argv[2]
         exists = db.check_numberplate_exists(numberplate)
         print(f"Numberplate {numberplate}: {'EXISTS' if exists else 'NOT FOUND'}")
-        
+
     else:
         print(f"Unknown command: {command}")
 
