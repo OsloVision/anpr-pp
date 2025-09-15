@@ -120,7 +120,7 @@ Main API client class:
 ```python
 class NorwegianVehicleAPI:
     def __init__(self, api_key=None, base_url=None, timeout=30, enable_logging=False)
-    
+
     def lookup_by_license_plate(self, license_plate: str) -> VehicleInfo
     def lookup_by_vin(self, vin: str) -> VehicleInfo
     def get_raw_data(self, license_plate=None, vin=None) -> Dict[str, Any]
@@ -150,6 +150,7 @@ except VehicleAPIError as e:
 ```
 
 Common error scenarios:
+
 - **400**: Bad request (invalid parameters)
 - **422**: Quota exceeded (retry after midnight Norwegian time)
 - **429**: Rate limited (retry after specified time)
@@ -159,13 +160,13 @@ Common error scenarios:
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `VEHICLE_API_KEY` | API key for authentication | None |
-| `VEHICLE_API_BASE_URL` | Base URL for the API | https://akfell-datautlevering.atlas.vegvesen.no |
-| `VEHICLE_API_TIMEOUT` | Request timeout in seconds | 30 |
-| `LOG_LEVEL` | Logging level | INFO |
-| `ENABLE_DEBUG_LOGGING` | Enable debug logging | false |
+| Variable               | Description                | Default                                         |
+| ---------------------- | -------------------------- | ----------------------------------------------- |
+| `VEHICLE_API_KEY`      | API key for authentication | None                                            |
+| `VEHICLE_API_BASE_URL` | Base URL for the API       | https://akfell-datautlevering.atlas.vegvesen.no |
+| `VEHICLE_API_TIMEOUT`  | Request timeout in seconds | 30                                              |
+| `LOG_LEVEL`            | Logging level              | INFO                                            |
+| `ENABLE_DEBUG_LOGGING` | Enable debug logging       | false                                           |
 
 ## Examples
 
@@ -176,6 +177,7 @@ python example_vehicle_lookup.py
 ```
 
 The example script includes:
+
 - License plate lookup
 - VIN lookup
 - Raw data access
@@ -190,6 +192,7 @@ https://akfell-datautlevering.atlas.vegvesen.no/swagger-ui/index.html
 ## Rate Limiting and Quotas
 
 The Norwegian Vehicle API has rate limits and daily quotas:
+
 - Respect the `Retry-After` header for rate limiting
 - Daily quotas reset at midnight Norwegian time
 - The client automatically handles retry logic
@@ -197,6 +200,7 @@ The Norwegian Vehicle API has rate limits and daily quotas:
 ## Data Models
 
 The client includes comprehensive Pydantic models for type safety:
+
 - `KjoretoydataResponse`: Main response model
 - `EnkeltOppslagKjoretoydata`: Individual vehicle data
 - `KjoretoyIdentitetBegrenset`: Vehicle identity
@@ -216,17 +220,17 @@ from norwegian_vehicle_api import lookup_vehicle_by_plate
 def process_vehicle_image(image_path):
     # Extract license plate from image
     license_plate = extract_license_plate(image_path)
-    
+
     if license_plate:
         # Look up vehicle information
         vehicle_info = lookup_vehicle_by_plate(license_plate)
-        
+
         if not vehicle_info.feilmelding:
             return {
                 'license_plate': license_plate,
                 'vehicle_info': vehicle_info
             }
-    
+
     return None
 ```
 

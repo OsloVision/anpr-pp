@@ -11,6 +11,7 @@ from enum import Enum
 
 class KodeverkType(BaseModel):
     """Code type from the Norwegian vehicle registry"""
+
     kodeBeskrivelse: Optional[str] = None
     kodeNavn: Optional[str] = None
     kodeTypeId: Optional[str] = None
@@ -20,6 +21,7 @@ class KodeverkType(BaseModel):
 
 class KjennemerkeKategori(str, Enum):
     """License plate categories"""
+
     KJORETOY = "KJORETOY"
     NORMAL = "NORMAL"
     PERSONLIG = "PERSONLIG"
@@ -28,6 +30,7 @@ class KjennemerkeKategori(str, Enum):
 
 class Adresse(BaseModel):
     """Address information"""
+
     adresselinje1: Optional[str] = None
     adresselinje2: Optional[str] = None
     adresselinje3: Optional[str] = None
@@ -41,6 +44,7 @@ class Adresse(BaseModel):
 
 class PersonnavnMedFodselsdato(BaseModel):
     """Person name with birth date"""
+
     etternavn: Optional[str] = None
     fodselsdato: Optional[date] = None
     fornavn: Optional[str] = None
@@ -49,12 +53,14 @@ class PersonnavnMedFodselsdato(BaseModel):
 
 class Enhet(BaseModel):
     """Organization unit"""
+
     organisasjonsnavn: Optional[str] = None
     organisasjonsnummer: Optional[str] = None
 
 
 class PersonEnhetBegrenset(BaseModel):
     """Limited person/entity information"""
+
     adresse: Optional[Adresse] = None
     enhet: Optional[Enhet] = None
     fomTidspunkt: Optional[datetime] = None
@@ -64,6 +70,7 @@ class PersonEnhetBegrenset(BaseModel):
 
 class EierskapBegrenset(BaseModel):
     """Limited ownership information"""
+
     eier: Optional[PersonEnhetBegrenset] = None
     leasingtaker: Optional[PersonEnhetBegrenset] = None
     medeier: Optional[PersonEnhetBegrenset] = None
@@ -73,6 +80,7 @@ class EierskapBegrenset(BaseModel):
 
 class Kjennemerke(BaseModel):
     """License plate information"""
+
     fomTidspunkt: Optional[datetime] = None
     kjennemerke: Optional[str] = None
     kjennemerkekategori: Optional[KjennemerkeKategori] = None
@@ -82,6 +90,7 @@ class Kjennemerke(BaseModel):
 
 class KjoretoyIdentitetBegrenset(BaseModel):
     """Limited vehicle identity"""
+
     kjennemerke: Optional[str] = None
     understellsnummer: Optional[str] = None
     kuid: Optional[str] = None
@@ -89,11 +98,13 @@ class KjoretoyIdentitetBegrenset(BaseModel):
 
 class Forstegangsregistrering(BaseModel):
     """First-time registration"""
+
     registrertForstegangNorgeDato: Optional[date] = None
 
 
 class Registrering(BaseModel):
     """Vehicle registration information"""
+
     fomTidspunkt: Optional[datetime] = None
     kjoringensArt: Optional[KodeverkType] = None
     neringskode: Optional[str] = None
@@ -106,18 +117,21 @@ class Registrering(BaseModel):
 
 class PeriodiskKjoretoyKontroll(BaseModel):
     """Periodic vehicle inspection"""
+
     kontrollfrist: Optional[date] = None
     sistGodkjent: Optional[date] = None
 
 
 class Merke(BaseModel):
     """Vehicle brand"""
+
     merke: Optional[str] = None
     merkeKode: Optional[str] = None
 
 
 class Fabrikant(BaseModel):
     """Manufacturer information"""
+
     fabrikantAdresse: Optional[str] = None
     fabrikantNavn: Optional[str] = None
     fabrikantRepresentantAdresse: Optional[str] = None
@@ -126,6 +140,7 @@ class Fabrikant(BaseModel):
 
 class Generelt(BaseModel):
     """General vehicle information"""
+
     fabrikant: Optional[List[Fabrikant]] = None
     ferdigbyggetEllerEndretSomFolger: Optional[str] = None
     handelsbetegnelse: Optional[List[str]] = None
@@ -138,6 +153,7 @@ class Generelt(BaseModel):
 
 class Dimensjoner(BaseModel):
     """Vehicle dimensions"""
+
     bredde: Optional[int] = None
     hoyde: Optional[int] = None
     lengde: Optional[int] = None
@@ -150,6 +166,7 @@ class Dimensjoner(BaseModel):
 
 class Vekter(BaseModel):
     """Vehicle weights"""
+
     egenvekt: Optional[int] = None
     egenvektMaksimum: Optional[int] = None
     egenvektMinimum: Optional[int] = None
@@ -174,6 +191,7 @@ class Vekter(BaseModel):
 
 class Drivstoff(BaseModel):
     """Fuel information"""
+
     drivstoffKode: Optional[KodeverkType] = None
     effektVektForhold: Optional[float] = None
     maksEffektPrTime: Optional[float] = None
@@ -187,6 +205,7 @@ class Drivstoff(BaseModel):
 
 class Motor(BaseModel):
     """Engine information"""
+
     antallSylindre: Optional[int] = None
     arbeidsprinsipp: Optional[KodeverkType] = None
     avgassResirkulering: Optional[bool] = None
@@ -209,6 +228,7 @@ class Motor(BaseModel):
 
 class MotorOgDrivverk(BaseModel):
     """Engine and drivetrain"""
+
     antallGir: Optional[int] = None
     antallGirBakover: Optional[int] = None
     effektKraftuttakKW: Optional[int] = None
@@ -227,6 +247,7 @@ class MotorOgDrivverk(BaseModel):
 
 class TekniskeData(BaseModel):
     """Technical data"""
+
     generelt: Optional[Generelt] = None
     dimensjoner: Optional[Dimensjoner] = None
     vekter: Optional[Vekter] = None
@@ -236,12 +257,14 @@ class TekniskeData(BaseModel):
 
 class Kjoretoymerknad(BaseModel):
     """Vehicle note"""
+
     merknad: Optional[str] = None
     merknadtypeKode: Optional[str] = None
 
 
 class TekniskGodkjenning(BaseModel):
     """Technical approval"""
+
     godkjenningsId: Optional[str] = None
     godkjenningsundertype: Optional[KodeverkType] = None
     gyldigFraDato: Optional[date] = None
@@ -250,12 +273,14 @@ class TekniskGodkjenning(BaseModel):
 
 class Godkjenning(BaseModel):
     """Vehicle approval"""
+
     kjoretoymerknad: Optional[List[Kjoretoymerknad]] = None
     tekniskGodkjenning: Optional[TekniskGodkjenning] = None
 
 
 class EnkeltOppslagKjoretoydata(BaseModel):
     """Single lookup vehicle data"""
+
     kjoretoyId: Optional[KjoretoyIdentitetBegrenset] = None
     forstegangsregistrering: Optional[Forstegangsregistrering] = None
     kjennemerke: Optional[List[Kjennemerke]] = None
@@ -266,6 +291,7 @@ class EnkeltOppslagKjoretoydata(BaseModel):
 
 class KjoretoydataResponse(BaseModel):
     """Vehicle data response"""
+
     feilmelding: Optional[str] = None
     kjoretoydataListe: Optional[List[EnkeltOppslagKjoretoydata]] = None
 
@@ -273,6 +299,7 @@ class KjoretoydataResponse(BaseModel):
 # Error response models
 class APIError(BaseModel):
     """API Error response"""
+
     message: str
     status_code: int
     details: Optional[str] = None
