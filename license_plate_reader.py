@@ -10,9 +10,11 @@ import base64
 import argparse
 import re
 import requests
+import json
 from pathlib import Path
 from openai import OpenAI
 from loan_db_utils import LoanStatusDB
+from norwegian_vehicle_api import NorwegianVehicleAPI, VehicleAPIError
 
 
 def encode_image(image_path):
@@ -93,6 +95,48 @@ def read_license_plate(image_path, api_key=None):
         sys.exit(1)
 
 
+def lookup_norwegian_vehicle_registry(numberplate):
+    """
+    Look up vehicle information from the Norwegian vehicle registry API.
+
+    Args:
+        numberplate (str): The license plate number to check
+
+    Returns:
+        tuple: (status, raw_data_dict) where status is "yes"/"no"/"error"
+               and raw_data_dict contains the full API response
+    """
+    try:
+        # Initialize the Norwegian Vehicle API
+        api = NorwegianVehicleAPI()
+
+        # Perform the lookup
+        vehicle_info = api.lookup_by_license_plate(numberplate)
+
+        # Get the raw data as well for storing in the database
+        raw_data = api.get_raw_data(license_plate=numberplate)
+
+        # Determine status based on whether we got vehicle data
+        if vehicle_info.feilmelding:
+            # There was an error or no data found
+            status = "no"
+        elif vehicle_info.kuid or vehicle_info.kjennemerke:
+            # We found valid vehicle data
+            status = "yes"
+        else:
+            # No clear data found
+            status = "no"
+
+        return status, raw_data
+
+    except VehicleAPIError as e:
+        print(f"Vehicle API error for {numberplate}: {e}", file=sys.stderr)
+        return "error", {"error": str(e), "error_type": "VehicleAPIError"}
+    except Exception as e:
+        print(f"Unexpected error looking up {numberplate}: {e}", file=sys.stderr)
+        return "error", {"error": str(e), "error_type": "UnexpectedError"}
+
+
 def check_norwegian_registry(numberplate):
     """
     Check if a license plate is registered in the Norwegian vehicle registry.
@@ -139,6 +183,106 @@ def check_norwegian_registry(numberplate):
         return "no"
 
 
+def check_both_norwegian_services(numberplate):
+    """
+    Check both Norwegian registry services and combine the results.
+
+    Args:
+        numberplate (str): The license plate number to check
+
+    Returns:
+        tuple: (combined_status, combined_info) where:
+            - combined_status: "yes" if either service found data, "no" if both failed, "partial" if mixed results
+            - combined_info: dict containing results from both services
+    """
+    import datetime
+
+    combined_info = {
+        "numberplate": numberplate,
+        "scraping_service": {},
+        "official_api": {},
+        "timestamp": datetime.datetime.now().isoformat(),
+        "services_checked": ["brreg_scraping", "vegvesen_api"],
+    }
+
+    # Check scraping service (Brønnøysund Register Centre)
+    print("🔍 Checking Brønnøysund Register Centre (scraping)...")
+    try:
+        scraping_result = check_norwegian_registry(numberplate)
+        combined_info["scraping_service"] = {
+            "status": scraping_result,
+            "source": "brreg.no_scraping",
+            "service": "Brønnøysund Register Centre",
+            "method": "web_scraping",
+            "error": None,
+        }
+        print(f"   Scraping result: {scraping_result}")
+    except Exception as e:
+        print(f"   Scraping error: {e}")
+        combined_info["scraping_service"] = {
+            "status": "error",
+            "source": "brreg.no_scraping",
+            "service": "Brønnøysund Register Centre",
+            "method": "web_scraping",
+            "error": str(e),
+        }
+
+    # Check official API (Norwegian Public Roads Administration)
+    print("🔍 Checking Norwegian Public Roads Administration (official API)...")
+    try:
+        api_status, api_data = lookup_norwegian_vehicle_registry(numberplate)
+
+        # Convert any date objects to strings for JSON serialization
+        if api_data and isinstance(api_data, dict):
+            api_data = json.loads(json.dumps(api_data, default=str))
+
+        combined_info["official_api"] = {
+            "status": api_status,
+            "source": "vegvesen_api",
+            "service": "Norwegian Public Roads Administration",
+            "method": "official_api",
+            "raw_data": api_data,
+            "error": None,
+        }
+        print(f"   API result: {api_status}")
+    except Exception as e:
+        print(f"   API error: {e}")
+        combined_info["official_api"] = {
+            "status": "error",
+            "source": "vegvesen_api",
+            "service": "Norwegian Public Roads Administration",
+            "method": "official_api",
+            "raw_data": None,
+            "error": str(e),
+        }
+
+    # Determine combined status
+    scraping_status = combined_info["scraping_service"]["status"]
+    api_status = combined_info["official_api"]["status"]
+
+    if scraping_status == "yes" and api_status == "yes":
+        combined_status = "yes"
+    elif scraping_status == "yes" or api_status == "yes":
+        combined_status = "partial"  # Found in one service but not the other
+    elif scraping_status == "error" or api_status == "error":
+        combined_status = "error"
+    else:
+        combined_status = "no"
+
+    # Add summary
+    combined_info["summary"] = {
+        "final_status": combined_status,
+        "scraping_found": scraping_status == "yes",
+        "api_found": api_status == "yes",
+        "both_agree": scraping_status == api_status,
+        "services_available": sum(
+            1 for s in [scraping_status, api_status] if s not in ["error", "no"]
+        ),
+    }
+
+    return combined_status, combined_info
+
+
 def check_plate_only(numberplate):
     """
     Standalone function to check if a license plate is registered in Norwegian registry.
@@ -152,13 +296,16 @@ def check_plate_only(numberplate):
     return check_norwegian_registry(numberplate)
 
 
-def upsert_loan_status(numberplate, loan_status, db_path="loan_status.db"):
+def upsert_loan_status(
+    numberplate, loan_status, info_data=None, db_path="loan_status.db"
+):
     """
     Insert or update loan status in the database.
 
     Args:
         numberplate (str): License plate number
         loan_status (str): Loan status ("yes" for registered, "no" for not registered)
+        info_data (dict, optional): Additional vehicle information as dictionary
         db_path (str): Path to the SQLite database file
 
     Returns:
@@ -181,6 +328,7 @@ def upsert_loan_status(numberplate, loan_status, db_path="loan_status.db"):
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     numberplate TEXT NOT NULL,
                     loan TEXT NOT NULL,
+                    info JSON,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
@@ -208,18 +356,23 @@ def upsert_loan_status(numberplate, loan_status, db_path="loan_status.db"):
 
         db = LoanStatusDB(db_path)
 
+        # Convert info_data to JSON string if provided
+        info_json = None
+        if info_data:
+            info_json = json.dumps(info_data)
+
         # Check if record exists
         existing_record = db.get_loan_status(numberplate)
 
         if existing_record:
             # Update existing record
-            success = db.update_loan_status(numberplate, loan_status)
+            success = db.update_loan_status(numberplate, loan_status, info_json)
             if success:
                 print(f"📝 Updated database: {numberplate} -> {loan_status}")
             return success
         else:
             # Insert new record
-            success = db.add_loan_status(numberplate, loan_status)
+            success = db.add_loan_status(numberplate, loan_status, info_json)
             if success:
                 print(f"💾 Added to database: {numberplate} -> {loan_status}")
             return success
@@ -244,7 +397,17 @@ def main():
     parser.add_argument(
         "--check-registry",
         action="store_true",
-        help="Also check if the license plate is registered in Norwegian vehicle registry",
+        help="Check Norwegian vehicle registry using the official API",
+    )
+    parser.add_argument(
+        "--check-both",
+        action="store_true",
+        help="Check both Norwegian registry services (scraping + official API) and compare results",
+    )
+    parser.add_argument(
+        "--use-scraping",
+        action="store_true",
+        help="Use web scraping method instead of official API for registry check (fallback method)",
     )
     parser.add_argument(
         "--db-path",
@@ -274,12 +437,54 @@ def main():
         print(license_plate_text)
 
         # Check Norwegian registry if requested
-        if args.check_registry:
-            registry_result = check_norwegian_registry(license_plate_text)
+        if args.check_both:
+            # Check both services and compare results
+            registry_result, registry_info = check_both_norwegian_services(
+                license_plate_text
+            )
+            print(f"Combined registry result: {registry_result}")
+
+            # Print summary
+            summary = registry_info["summary"]
+            print("📊 Summary:")
+            print(
+                f"   Scraping service found: {'✅' if summary['scraping_found'] else '❌'}"
+            )
+            print(f"   Official API found: {'✅' if summary['api_found'] else '❌'}")
+            print(f"   Services agree: {'✅' if summary['both_agree'] else '❌'}")
+
+            # Upsert into database
+            upsert_loan_status(
+                license_plate_text, registry_result, registry_info, args.db_path
+            )
+
+        elif args.check_registry:
+            if args.use_scraping:
+                # Use the old web scraping method
+                registry_result = check_norwegian_registry(license_plate_text)
+                registry_info = {
+                    "method": "scraping_only",
+                    "service": "Brønnøysund Register Centre",
+                    "result": registry_result,
+                }
+            else:
+                # Use the official API (default)
+                registry_result, api_data = lookup_norwegian_vehicle_registry(
+                    license_plate_text
+                )
+                registry_info = {
+                    "method": "api_only",
+                    "service": "Norwegian Public Roads Administration",
+                    "result": registry_result,
+                    "raw_data": api_data,
+                }
+
             print(f"Norwegian registry: {registry_result}")
 
             # Upsert into database
-            upsert_loan_status(license_plate_text, registry_result, args.db_path)
+            upsert_loan_status(
+                license_plate_text, registry_result, registry_info, args.db_path
+            )
 
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.", file=sys.stderr)

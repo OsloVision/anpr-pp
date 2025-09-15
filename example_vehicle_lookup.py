@@ -5,6 +5,7 @@ Example usage of the Norwegian Vehicle API client
 
 import os
 import sys
+import json
 from norwegian_vehicle_api import (
     NorwegianVehicleAPI,
     VehicleAPIError,
@@ -76,6 +77,46 @@ def example_vin_lookup():
                 print(f"License Plate: {vehicle_info.kjennemerke}")
                 print(f"First Registered: {vehicle_info.registrert_forstgang}")
                 print(f"Inspection Due: {vehicle_info.kontrollfrist}")
+
+    except VehicleAPIError as e:
+        print(f"API Error: {e.message}")
+        if e.status_code:
+            print(f"Status Code: {e.status_code}")
+        if e.details:
+            print(f"Details: {e.details}")
+    except Exception as e:
+        print(f"Unexpected error: {str(e)}")
+
+
+def example_detailed_lookup():
+    """Example: Detailed lookup with raw response data"""
+    print("\n=== Detailed Lookup with Raw Response ===")
+
+    # Use a real Norwegian license plate format
+    license_plate = "DR21468"  # Update this with a real plate for testing
+
+    try:
+        with NorwegianVehicleAPI(enable_logging=True) as api:
+            print(f"Looking up vehicle with license plate: {license_plate}")
+
+            # First, get the raw response
+            print("\n--- RAW API RESPONSE ---")
+            raw_data = api.get_raw_data(license_plate=license_plate)
+            print("Full raw response:")
+            print(json.dumps(raw_data, indent=2, ensure_ascii=False, default=str))
+
+            print("\n--- PARSED VEHICLE INFO ---")
+            # Then get the parsed vehicle info
+            vehicle_info = api.lookup_by_license_plate(license_plate)
+
+            if vehicle_info.feilmelding:
+                print(f"Error: {vehicle_info.feilmelding}")
+            else:
+                print("Parsed vehicle information:")
+                for field_name in vehicle_info.__dataclass_fields__:
+                    value = getattr(vehicle_info, field_name)
+                    if value is not None:
+                        print(f"  {field_name}: {value}")
 
     except VehicleAPIError as e:
         print(f"API Error: {e.message}")
@@ -196,6 +237,7 @@ def main():
 
     # Run examples
     example_connection_test()
+    example_detailed_lookup()  # Show detailed raw response first
     example_license_plate_lookup()
     example_vin_lookup()
     example_raw_data()

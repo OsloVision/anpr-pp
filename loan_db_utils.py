@@ -19,13 +19,16 @@ class LoanStatusDB:
         """Create database connection."""
         return sqlite3.connect(self.db_path)
 
-    def add_loan_status(self, numberplate: str, loan: str) -> bool:
+    def add_loan_status(
+        self, numberplate: str, loan: str, info: Optional[str] = None
+    ) -> bool:
         """
         Add a new loan status record.
 
         Args:
             numberplate (str): License plate number
             loan (str): Loan status
+            info (str, optional): JSON string with additional vehicle information
 
         Returns:
             bool: True if successful, False if duplicate or error
@@ -33,13 +36,22 @@ class LoanStatusDB:
         try:
             with self.connect() as conn:
                 cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    INSERT INTO loan_status (numberplate, loan) 
-                    VALUES (?, ?)
-                """,
-                    (numberplate, loan),
-                )
+                if info:
+                    cursor.execute(
+                        """
+                        INSERT INTO loan_status (numberplate, loan, info) 
+                        VALUES (?, ?, json(?))
+                    """,
+                        (numberplate, loan, info),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        INSERT INTO loan_status (numberplate, loan) 
+                        VALUES (?, ?)
+                    """,
+                        (numberplate, loan),
+                    )
                 conn.commit()
                 print(f"✅ Added: {numberplate} - {loan}")
                 return True
@@ -52,7 +64,7 @@ class LoanStatusDB:
 
     def get_loan_status(
         self, numberplate: str
-    ) -> Optional[Tuple[int, str, str, str, str]]:
+    ) -> Optional[Tuple[int, str, str, Optional[str], str, str]]:
         """
         Get loan status for a specific numberplate.
 
@@ -60,14 +72,14 @@ class LoanStatusDB:
             numberplate (str): License plate number
 
         Returns:
-            Tuple[int, str, str, str, str] or None: (id, numberplate, loan, created_at, updated_at) or None if not found
+            Tuple[int, str, str, str, str, str] or None: (id, numberplate, loan, info, created_at, updated_at) or None if not found
         """
         try:
             with self.connect() as conn:
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    SELECT id, numberplate, loan, created_at, updated_at
+                    SELECT id, numberplate, loan, info, created_at, updated_at
                     FROM loan_status 
                     WHERE numberplate = ?
                 """,
@@ -79,13 +91,16 @@ class LoanStatusDB:
             print(f"❌ Error querying database: {e}")
             return None
 
-    def update_loan_status(self, numberplate: str, loan: str) -> bool:
+    def update_loan_status(
+        self, numberplate: str, loan: str, info: Optional[str] = None
+    ) -> bool:
         """
         Update loan status for existing numberplate.
 
         Args:
             numberplate (str): License plate number
             loan (str): New loan status
+            info (str, optional): JSON string with additional vehicle information
 
         Returns:
             bool: True if successful, False if not found or error
@@ -93,14 +108,24 @@ class LoanStatusDB:
         try:
             with self.connect() as conn:
                 cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    UPDATE loan_status 
-                    SET loan = ? 
-                    WHERE numberplate = ?
-                """,
-                    (loan, numberplate),
-                )
+                if info:
+                    cursor.execute(
+                        """
+                        UPDATE loan_status 
+                        SET loan = ?, info = json(?)
+                        WHERE numberplate = ?
+                    """,
+                        (loan, info, numberplate),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        UPDATE loan_status 
+                        SET loan = ? 
+                        WHERE numberplate = ?
+                    """,
+                        (loan, numberplate),
+                    )
 
                 if cursor.rowcount > 0:
                     conn.commit()
@@ -147,18 +172,18 @@ class LoanStatusDB:
             print(f"❌ Error deleting record: {e}")
             return False
 
-    def list_all_records(self) -> List[Tuple[int, str, str, str, str]]:
+    def list_all_records(self) -> List[Tuple[int, str, str, Optional[str], str, str]]:
         """
         Get all loan status records.
 
         Returns:
-            List[Tuple[int, str, str, str, str]]: List of (id, numberplate, loan, created_at, updated_at) tuples
+            List[Tuple[int, str, str, str, str, str]]: List of (id, numberplate, loan, info, created_at, updated_at) tuples
         """
         try:
             with self.connect() as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT id, numberplate, loan, created_at, updated_at FROM loan_status ORDER BY id"
+                    "SELECT id, numberplate, loan, info, created_at, updated_at FROM loan_status ORDER BY id"
                 )
                 return cursor.fetchall()
         except sqlite3.Error as e:
@@ -217,7 +242,9 @@ def main():
         result = db.get_loan_status(numberplate)
         if result:
             print(f"ID: {result[0]}, Numberplate: {result[1]}, Loan: {result[2]}")
-            print(f"Created: {result[3]}, Updated: {result[4]}")
+            if result[3]:  # info field
+                print(f"Info: {result[3]}")
+            print(f"Created: {result[4]}, Updated: {result[5]}")
         else:
             print(f"Numberplate {numberplate} not found")
 
@@ -242,7 +269,9 @@ def main():
             print("-" * 80)
             for record in records:
                 print(f"ID: {record[0]}, Numberplate: {record[1]}, Loan: {record[2]}")
-                print(f"    Created: {record[3]}, Updated: {record[4]}")
+                if record[3]:  # info field
+                    print(f"    Info: {record[3]}")
+                print(f"    Created: {record[4]}, Updated: {record[5]}")
         else:
             print("No records found")
 

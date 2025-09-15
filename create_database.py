@@ -28,6 +28,7 @@ def create_loan_status_database(db_path="loan_status.db"):
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 numberplate TEXT NOT NULL,
                 loan TEXT NOT NULL,
+                info JSON,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
@@ -54,7 +55,7 @@ def create_loan_status_database(db_path="loan_status.db"):
 
         print(f"✅ Database created successfully: {os.path.abspath(db_path)}")
         print(
-            "✅ Table 'loan_status' created with columns: id, numberplate, loan, created_at, updated_at"
+            "✅ Table 'loan_status' created with columns: id, numberplate, loan, info, created_at, updated_at"
         )
         print("✅ Unique index created on 'numberplate' column")
         print("✅ Trigger created to automatically update 'updated_at' column")
